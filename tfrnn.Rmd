@@ -1,0 +1,165 @@
+---
+title: "Tensorflow RNN Example"
+author: "Sean Fitzgerald"
+date: "3/20/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Installations and imports
+```{r}
+# install.packages("tensorflow")
+# install.packages("caret")
+library(tensorflow)
+library(caret)
+```
+
+## Read in data
+```{r}
+# use 'tf' to use the tensorflow package
+df <- read.csv("./prices-split-adjusted.csv")
+head(df)
+```
+
+# Preprocessing
+```{r}
+# Equinix is a datacenter company based in California
+stock <- df[which(df$symbol == "EQIX"),c(3, 4, 5, 6)]
+rownames(stock) <- 1:nrow(stock)
+preProcessValues <- preProcess(stock, method=c("range"))
+stockProcessed <- predict(preProcessValues, stock)
+```
+
+# Define parameters and partition data set
+```{r}
+# parameters
+numInputs <- ncol(stockProcessed)
+numNeurons <- 200L
+numOutputs <- 4L
+numLayers <- 2L
+learningRate = 0.001
+batchSize = 50L
+numEpochs = 100L
+sequenceLength = 20L
+numSteps <- sequenceLength - 1L
+numSequences = nrow(stockProcessed) - sequenceLength
+
+# we'll use sequences to train our RNN
+allPossibleSequences <- array(c(rep.int(0, times=numSequences), rep.int(0,times=sequenceLength),rep.int(0,times=numInputs)), c(numSequences, sequenceLength, numInputs))
+
+for(i in 1:numSequences) {
+  allPossibleSequences[i,,] <- array(as.matrix(stockProcessed[i:(i+sequenceLength-1),]),c(sequenceLength,numInputs))
+}
+
+# create train and test sets, making the last set of inputs in the sequnce y
+trainSetSize <- round(.8*numSequences)
+validSetSize <- round(.1*numSequences)
+
+xTrain <- allPossibleSequences[1:trainSetSize,1:(sequenceLength-1),]
+yTrain <- allPossibleSequences[1:trainSetSize,sequenceLength,]
+
+xValid <- allPossibleSequences[trainSetSize:(trainSetSize+validSetSize),1:(sequenceLength-1),]
+yValid <- allPossibleSequences[trainSetSize:(trainSetSize+validSetSize),sequenceLength,]
+
+xTest <- allPossibleSequences[(trainSetSize+validSetSize):numSequences,1:(sequenceLength-1),]
+yTest <- allPossibleSequences[(trainSetSize+validSetSize):numSequences,sequenceLength,]
+```
+
+# Train RNN and get predictions on partitions
+```{r}
+# Run below line to reset tensorflow between tests
+tf$reset_default_graph()
+
+# X and Y placeholders
+x <- tf$placeholder(tf$float32, shape(NULL, numSteps, numInputs))
+y <- tf$placeholder(tf$float32, shape(NULL, numOutputs))
+
+# use Basic RNN Cell
+# layers <- replicate(numLayers,tf$nn$rnn_cell$BasicRNNCell(num_units=numNeurons, activation=tf$nn$elu))
+
+# use Basic LSTM Cell
+layers <- replicate(numLayers,tf$nn$rnn_cell$LSTMCell(num_units=numNeurons, activation=tf$nn$elu))
+
+# use LSTM Cell with peephole connections
+#layers <- replicate(numLayers, tf$nn$rnn_cell$LSTMCell(num_units = numNeurons, activation = tf$nn$leaky_relu, use_peepholes = T))
+
+multiLayerCell <- tf$nn$rnn_cell$MultiRNNCell(layers)
+
+rnn <- tf$nn$dynamic_rnn(multiLayerCell, x, dtype=tf$float32)
+rnnOutputs <- rnn[[1]]
+
+stackedRnnOutputs <- tf$reshape(rnnOutputs, c(-1L, numNeurons))
+stackedOutputs <- tf$layers$dense(stackedRnnOutputs, numOutputs)
+outputs <- tf$reshape(stackedOutputs, c(-1L, numSteps, numOutputs))
+outputs <- outputs[,numSteps-1,]
+
+# loss function = mean squared error
+loss <- tf$reduce_mean(tf$square(outputs - y))
+optimizer <- tf$train$AdamOptimizer(learning_rate = learningRate)
+trainingOperation <- optimizer$minimize(loss)
+
+permutationVector <- sample(1:trainSetSize)
+indexInEpoch <- 1
+getNextBatch <- function(batchSize) {
+  start <- indexInEpoch
+  indexInEpoch <<- batchSize + indexInEpoch
+  
+  if (indexInEpoch > trainSetSize) {
+    permutationVector <<- sample(1:trainSetSize)
+    start <- 0
+    indexInEpoch <<- batchSize
+  }
+  
+  end <- indexInEpoch
+  return(list("xBatch"=xTrain[permutationVector[start:end],,],  "yBatch"=yTrain[permutationVector[start:end],]))
+}
+
+yTrainPrediction <- NULL
+yValidPrediction <- NULL
+yTestPrediction <- NULL
+
+# run graph
+with(tf$Session() %as% sess, {
+  sess$run(tf$global_variables_initializer())
+  for (i in 1:(numEpochs*trainSetSize/batchSize)) {
+    nextBatch <- getNextBatch(batchSize)
+    xBatch <- nextBatch$xBatch
+    yBatch <- nextBatch$yBatch
+    sess$run(trainingOperation, feed_dict=dict(x = xBatch, y = yBatch))
+    if (i %% round(5*trainSetSize/batchSize) == 0) {
+      # logging
+      mseTrain <- loss$eval(feed_dict = dict(x = xTrain, y = yTrain))
+      mseValid <- loss$eval(feed_dict = dict(x = xValid, y = yValid))
+      cat(i*batchSize/trainSetSize, " epochs. MSE train: ", mseTrain, " MSE valid: ", mseValid, "\n")
+    }
+  }
+  
+  yTrainPrediction <<- sess$run(outputs, feed_dict=dict(x = xTrain))
+  yValidPrediction <<- sess$run(outputs, feed_dict=dict(x = xValid))
+  yTestPrediction <<- sess$run(outputs, feed_dict=dict(x = xTest))
+})
+```
+
+# Get accuracy of predictions
+```{r}
+getStockSignPredictionAccuracy <- function(pred, actual) {
+  predSigns <- sign(pred[,2] - pred[,1])
+  actualSigns <- sign(actual[,2] - actual[,1])
+  
+  signsAreEqual <- predSigns == actualSigns
+  accuracy <- sum(signsAreEqual) / length(signsAreEqual)
+  return(accuracy)
+}
+
+getStockSignPredictionAccuracy(yTrainPrediction, yTrain)
+getStockSignPredictionAccuracy(yValidPrediction, yValid)
+getStockSignPredictionAccuracy(yTestPrediction, yTest)
+```
+
+
+
+
+
