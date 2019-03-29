@@ -1,0 +1,118 @@
+---
+title: "Simple RNN with Keras"
+author: "Sean Fitzgerald"
+date: "3/24/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# install.packages("devtools")
+# devtools::install_github("rstudio/keras")
+library(keras)
+# use_python("/Users/sean/.pyenv/shims/python")
+# install_keras(method = "conda", conda = "/Users/sean/.pyenv/shims/conda")
+
+food <- read.csv("./weather-food.csv")
+head(food)
+
+numInputs <- ncol(food)
+learningRate = 0.3
+sequenceLength = 2L
+numSteps <- sequenceLength - 1L
+numSequences = nrow(food) - sequenceLength
+
+sequences <- array(c(rep.int(0,times=numSequences),rep.int(0,times=sequenceLength),rep.int(0,times=numInputs)),c(numSequences,sequenceLength,numInputs))
+for (i in 1:numSequences) {
+  sequences[i,,] <- array(as.matrix(food[i:(i+sequenceLength-1),]),c(sequenceLength,numInputs))
+}
+```
+
+
+```{r}
+numWeatherOptions <- 2
+numFoodOptions <- 3
+
+weatherInput <- layer_input(shape=c(numWeatherOptions))
+
+weatherMult <- function(layer) {
+  weatherVariable <- k_variable(matrix(c(
+    c(1,0),
+    c(1,0),
+    c(1,0),
+    c(0,1),
+    c(0,1),
+    c(0,1)
+  ),nrow=2,ncol=6))
+  weatherDot <- k_dot(layer, weatherVariable)
+  return(weatherDot)
+}
+
+weatherDot <- weatherInput %>% layer_lambda(weatherMult)
+
+foodInput <- layer_input(shape=c(numFoodOptions))
+
+foodMult <- function(layer) {
+  foodMatrix <- k_variable(matrix(c(
+    c(1,0,0),
+    c(0,1,0),
+    c(0,0,1),
+    c(0,0,1),
+    c(1,0,0),
+    c(0,1,0)
+  ),nrow=3,ncol=6))
+  foodDot <- k_dot(layer, foodMatrix)
+  return(foodDot)
+}
+foodDot <- foodInput %>% layer_lambda(foodMult)
+
+scaleLayer <- function(layer) {
+  scaler <- array(rep.int(0.2,6),c(1,6))
+  scaler <- k_variable(scaler)
+
+  added <- layer_add(c(layer, scaler))
+  return(k_round(added))
+}
+
+merged <- layer_add(c(weatherDot, foodDot)) %>%
+          layer_activation_softmax() %>%
+          layer_lambda(scaleLayer)
+
+addTopBottom <- function(layer) {
+  reshaped <- layer %>% layer_reshape(c(2,3))
+  added <- layer_add(c(reshaped[,1,],reshaped[,2,]))
+  return(added)
+}
+
+output <- merged %>% layer_lambda(addTopBottom)
+
+model <- keras_model(
+  inputs = c(weatherInput, foodInput),
+  outputs = output
+)
+```
+
+```{r}
+# Expects a keras model with 2 inputs. The first being each time step in the sequence and the second being the output that is fed back to the input
+feedSequence <- function(model, inputSequence, startState) {
+  predictions <- matrix(rep.int(0, nrow(inputSequence) * ncol(startState)), nrow=nrow(inputSequence), ncol=ncol(startState))
+  previousOutput <- startState
+  for (i in 1:nrow(inputSequence)) {
+    previousOutput <- predict(model, list(
+      array(inputSequence[i,],c(1,ncol(inputSequence))),
+      previousOutput
+    ), batch_size = 1)
+    
+    predictions[i,] <- previousOutput
+  }
+  return(predictions)
+}
+
+predictions <- feedSequence(model, as.matrix(food[,1:2]), as.matrix(food[1,3:5]))
+colnames(predictions) <- colnames(food)[3:5]
+predictions[-nrow(predictions),] == food[-1,3:5]
+```
+
