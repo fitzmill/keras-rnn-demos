@@ -16,8 +16,8 @@ use_python("/Users/sean/.pyenv/shims/python")
 ```
 
 ```{r}
-numSequences <- 100L
-sequenceLength <- 3L
+numSequences <- 500L
+sequenceLength <- 4L
 numSteps <- sequenceLength - 1L
 numInputs <- 1L
 
@@ -28,7 +28,7 @@ generateSampleData <- function(numSequences, sequenceLength, numInputs) {
   )
   for (i in 1:numSequences) {
     base <- i / numSequences
-    sequences[i,,] <- matrix(c(base, base*2, base*4), nrow=sequenceLength, ncol=numInputs)
+    sequences[i,,] <- matrix(c(base, base*2, base*4, base*8), nrow=sequenceLength, ncol=numInputs)
   }
   return(sequences)
 }
@@ -83,7 +83,7 @@ summary(model)
 x <- xTrain
 y <- yTrain
 
-history <- model %>% fit(x, y, epochs = 500, batch_size = batchSize, verbose=F)
+history <- model %>% fit(x, y, epochs = 1000, batch_size = batchSize, verbose=F)
 plot(history)
 ```
 
