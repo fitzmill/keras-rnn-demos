@@ -1,0 +1,95 @@
+---
+title: "keras-addition"
+author: "Sean Fitzgerald"
+date: "3/29/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(keras)
+use_python("/Users/sean/.pyenv/shims/python")
+# install_keras(method = "conda", conda = "/Users/sean/.pyenv/shims/conda")
+```
+
+```{r}
+numSequences <- 100L
+sequenceLength <- 3L
+numSteps <- sequenceLength - 1L
+numInputs <- 1L
+
+generateSampleData <- function(numSequences, sequenceLength, numInputs) {
+  sequences <- array(
+    0L,
+    c(numSequences, sequenceLength, numInputs)
+  )
+  for (i in 1:numSequences) {
+    base <- i / numSequences
+    sequences[i,,] <- matrix(c(base, base*2, base*4), nrow=sequenceLength, ncol=numInputs)
+  }
+  return(sequences)
+}
+
+sequences <- generateSampleData(numSequences, sequenceLength, numInputs)
+sequences[1,1,1]*2 == sequences[1,2,1]
+```
+
+```{r}
+trainSetSize <- round(.5*numSequences)
+batchSize <- trainSetSize
+trainIndexIndices <- sample(1:numSequences, trainSetSize)
+
+#add drop = F to not lose dimensions when indexing
+xTrain <- sequences[trainIndexIndices,1:numSteps,,drop = F]
+yTrain <- sequences[trainIndexIndices,sequenceLength,]
+
+xTest <- sequences[-trainIndexIndices,1:numSteps,, drop = F]
+yTest <- sequences[-trainIndexIndices,sequenceLength,]
+
+getNextBatch = function(x, y, startIndex, batchSize) {
+  endIndex <- startIndex + batchSize
+  return(list(
+    x = x[startIndex:(endIndex-1),,,drop = F],
+    y = y[startIndex:(endIndex-1),drop = F],
+    nextIndex = endIndex
+  ))
+}
+```
+
+```{r}
+# this will clear the current graph for creating new models/layers. It errors out but still clears the graph
+k_clear_session()
+```
+
+```{r}
+model <- keras_model_sequential()
+
+model %>%
+  layer_simple_rnn(1, batch_input_shape = c(batchSize, numSteps,numInputs)) %>%
+  layer_dense(1)
+
+model %>% compile(
+  optimizer = optimizer_sgd(lr=0.06),
+  loss = "mse"
+)
+
+summary(model)
+```
+
+```{r}
+x <- xTrain
+y <- yTrain
+
+history <- model %>% fit(x, y, epochs = 500, batch_size = batchSize, verbose=F)
+plot(history)
+```
+
+```{r}
+outputs <- model %>% predict(xTest, batch_size = batchSize)
+plot(1:batchSize, outputs, type="l", col = "red", xlab="Index", ylab="Prediction vs. Actual")
+points(1:batchSize, yTest, type="l", col = "black")
+legend(5, y = 3, c("Prediction", "Actual"), c("red", "black"))
+```

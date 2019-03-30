@@ -15,7 +15,9 @@ knitr::opts_chunk$set(echo = TRUE)
 library(keras)
 # use_python("/Users/sean/.pyenv/shims/python")
 # install_keras(method = "conda", conda = "/Users/sean/.pyenv/shims/conda")
+```
 
+```{r}
 food <- read.csv("./weather-food.csv")
 head(food)
 
@@ -25,7 +27,7 @@ sequenceLength = 2L
 numSteps <- sequenceLength - 1L
 numSequences = nrow(food) - sequenceLength
 
-sequences <- array(c(rep.int(0,times=numSequences),rep.int(0,times=sequenceLength),rep.int(0,times=numInputs)),c(numSequences,sequenceLength,numInputs))
+sequences <- array(0L,c(numSequences,sequenceLength,numInputs))
 for (i in 1:numSequences) {
   sequences[i,,] <- array(as.matrix(food[i:(i+sequenceLength-1),]),c(sequenceLength,numInputs))
 }
@@ -93,6 +95,8 @@ model <- keras_model(
   inputs = c(weatherInput, foodInput),
   outputs = output
 )
+
+summary(model)
 ```
 
 ```{r}
