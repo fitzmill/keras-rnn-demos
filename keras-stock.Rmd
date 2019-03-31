@@ -9,22 +9,135 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+##Installations and imports
+```{r}
+# install.packages("devtools")
+# devtools::install_github("rstudio/keras")
+library(keras)
+use_python("/Users/sean/.pyenv/shims/python")
+# install_keras(method = "conda", conda = "/Users/sean/.pyenv/shims/conda")
+library(caret)
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+## Read in data
+```{r}
+# use 'tf' to use the tensorflow package
+df <- read.csv("./prices-split-adjusted.csv")
+head(df)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+# Preprocessing
+```{r}
+# Equinix is a datacenter company based in California
+stock <- df[which(df$symbol == "MSFT"),c(4), drop = F]
+rownames(stock) <- 1:nrow(stock)
+preProcessValues <- preProcess(stock, method=c("range"))
+stockProcessed <- predict(preProcessValues, stock)
+```
+
+# Define parameters and create train/test set
+```{r}
+# parameters
+numInputs <- ncol(stockProcessed)
+numNeurons <- 19L
+numOutputs <- numInputs
+learningRate = 0.01
+batchSize = 34L
+numEpochs = 20L
+sequenceLength = 15L
+numSteps <- sequenceLength - 1L
+numSequences = nrow(stockProcessed) - sequenceLength
+
+# we'll use sequences to train our RNN
+allPossibleSequences <- array(c(rep.int(0, times=numSequences), rep.int(0,times=sequenceLength),rep.int(0,times=numInputs)), c(numSequences, sequenceLength, numInputs))
+
+for(i in 1:numSequences) {
+  allPossibleSequences[i,,] <- array(as.matrix(stockProcessed[i:(i+sequenceLength-1),]),c(sequenceLength,numInputs))
+}
+
+# create train and test sets, making the last set of inputs in the sequnce y
+trainSetSize <- round(.9*numSequences)
+
+xTrain <- allPossibleSequences[1:trainSetSize,1:(sequenceLength-1),,drop=F]
+yTrain <- allPossibleSequences[1:trainSetSize,sequenceLength,]
+
+xTest <- allPossibleSequences[(trainSetSize+1):numSequences,1:(sequenceLength-1),,drop=F]
+yTest <- allPossibleSequences[(trainSetSize+1):numSequences,sequenceLength,]
+```
+
+```{r}
+#this will error out, but graph still gets reset
+k_clear_session()
+```
+
+# Create model
+```{r}
+model <- keras_model_sequential()
+
+model %>%
+  layer_dense(numNeurons, input_shape = c(numSteps, numInputs)) %>%
+  layer_simple_rnn(numNeurons, input_shape = c(numSteps, numInputs)
+   #                , return_sequences = T
+                   ) %>%
+  #layer_simple_rnn(numNeurons) %>%
+  layer_dense(numOutputs)
+
+model %>% compile(
+  optimizer = optimizer_sgd(lr=learningRate),
+  loss = "mse"
+)
+
+summary(model)
+```
+
+# Train model
+```{r}
+history <- model %>% fit(
+  xTrain,
+  yTrain,
+  epochs = numEpochs,
+  batch_size = batchSize,
+  verbose = F,
+  shuffle = F
+)
+
+plot(history)
+```
+
+```{r}
+predictions <- model %>% predict(xTrain, batch_size = batchSize)
+closePred <- predictions[,1]
+closeActual <- yTrain
+plot(
+  1:length(closePred),
+  closePred,
+  type="l",
+  col="red",
+  ylim=c(min(c(closePred, closeActual)), max(c(closePred, closeActual))),
+  main="Prediction on Training Set"
+  )
+lines(1:length(closeActual), closeActual, type="l")
+legend(5, y = .6, c("Prediction", "Actual"), c("red", "black"))
+
+predictions <- model %>% predict(xTest, batch_size = batchSize)
+closePred <- predictions[,1]
+closeActual <- yTest
+plot(
+  1:length(closePred),
+  closePred,
+  type="l",
+  col="red",
+  ylim=c(min(c(closePred, closeActual)), max(c(closePred, closeActual))),
+  main="Prediction on Training Set"
+  )
+lines(1:length(closeActual), closeActual, type="l")
+legend(5, y = .95, c("Prediction", "Actual"), c("red", "black"))
+```
+
+
+
+
+
+
+
+

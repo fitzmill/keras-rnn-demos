@@ -10,6 +10,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
+# install.packages("devtools")
+# devtools::install_github("rstudio/keras")
 library(keras)
 use_python("/Users/sean/.pyenv/shims/python")
 # install_keras(method = "conda", conda = "/Users/sean/.pyenv/shims/conda")
@@ -48,15 +50,6 @@ yTrain <- sequences[trainIndexIndices,sequenceLength,]
 
 xTest <- sequences[-trainIndexIndices,1:numSteps,, drop = F]
 yTest <- sequences[-trainIndexIndices,sequenceLength,]
-
-getNextBatch = function(x, y, startIndex, batchSize) {
-  endIndex <- startIndex + batchSize
-  return(list(
-    x = x[startIndex:(endIndex-1),,,drop = F],
-    y = y[startIndex:(endIndex-1),drop = F],
-    nextIndex = endIndex
-  ))
-}
 ```
 
 ```{r}
