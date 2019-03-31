@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # install.packages("devtools")
 # devtools::install_github("rstudio/keras")
 library(keras)
-use_python("/Users/sean/.pyenv/shims/python")
+#use_python("/Users/sean/.pyenv/shims/python")
 # install_keras(method = "conda", conda = "/Users/sean/.pyenv/shims/conda")
 library(caret)
 ```
@@ -128,7 +128,7 @@ plot(
   type="l",
   col="red",
   ylim=c(min(c(closePred, closeActual)), max(c(closePred, closeActual))),
-  main="Prediction on Training Set"
+  main="Prediction on Test Set"
   )
 lines(1:length(closeActual), closeActual, type="l")
 legend(5, y = .95, c("Prediction", "Actual"), c("red", "black"))

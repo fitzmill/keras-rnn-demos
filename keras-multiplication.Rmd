@@ -40,8 +40,7 @@ sequences[1,1,1]*2 == sequences[1,2,1]
 ```
 
 ```{r}
-trainSetSize <- round(.5*numSequences)
-batchSize <- trainSetSize
+trainSetSize <- round(.8*numSequences)
 trainIndexIndices <- sample(1:numSequences, trainSetSize)
 
 #add drop = F to not lose dimensions when indexing
@@ -61,11 +60,11 @@ k_clear_session()
 model <- keras_model_sequential()
 
 model %>%
-  layer_simple_rnn(1, batch_input_shape = c(batchSize, numSteps,numInputs)) %>%
+  layer_simple_rnn(1, input_shape = c(numSteps,numInputs)) %>%
   layer_dense(1)
 
 model %>% compile(
-  optimizer = optimizer_sgd(lr=0.06),
+  optimizer = optimizer_sgd(lr=0.003),
   loss = "mse"
 )
 
@@ -76,13 +75,34 @@ summary(model)
 x <- xTrain
 y <- yTrain
 
-history <- model %>% fit(x, y, epochs = 1000, batch_size = batchSize, verbose=F)
+history <- model %>% fit(x, y, epochs = 100, verbose=F)
 plot(history)
 ```
 
 ```{r}
-outputs <- model %>% predict(xTest, batch_size = batchSize)
-plot(1:batchSize, outputs, type="l", col = "red", xlab="Index", ylab="Prediction vs. Actual")
-points(1:batchSize, yTest, type="l", col = "black")
-legend(5, y = 3, c("Prediction", "Actual"), c("red", "black"))
+predictions <- model %>% predict(xTrain)
+plot(
+  1:length(predictions),
+  predictions,
+  type="l",
+  col="red",
+  ylim=c(min(c(predictions, yTrain)), max(c(predictions, yTrain))),
+  main="Prediction on Training Set"
+  )
+lines(1:length(yTrain), yTrain, type="l")
+legend(5, y = 8, c("Prediction", "Actual"), c("red", "black"))
+
+predictions <- model %>% predict(xTest)
+closePred <- predictions[,1]
+closeActual <- yTest
+plot(
+  1:length(predictions),
+  predictions,
+  type="l",
+  col="red",
+  ylim=c(min(c(predictions, yTest)), max(c(predictions, yTest))),
+  main="Prediction on Test Set"
+  )
+lines(1:length(yTest), yTest, type="l")
+legend(5, y = 8, c("Prediction", "Actual"), c("red", "black"))
 ```
