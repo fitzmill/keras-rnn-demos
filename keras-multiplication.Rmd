@@ -1,5 +1,5 @@
 ---
-title: "keras-addition"
+title: "keras-multiplication"
 author: "Sean Fitzgerald"
 date: "3/29/2019"
 output: html_document
@@ -9,6 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Install libraries
 ```{r}
 # install.packages("devtools")
 # devtools::install_github("rstudio/keras")
@@ -17,6 +18,7 @@ use_python("/Users/sean/.pyenv/shims/python")
 # install_keras(method = "conda", conda = "/Users/sean/.pyenv/shims/conda")
 ```
 
+## Generate data
 ```{r}
 numSequences <- 500L
 sequenceLength <- 4L
@@ -39,6 +41,7 @@ sequences <- generateSampleData(numSequences, sequenceLength, numInputs)
 sequences[1,1,1]*2 == sequences[1,2,1]
 ```
 
+## Create train and test sets
 ```{r}
 trainSetSize <- round(.8*numSequences)
 trainIndexIndices <- sample(1:numSequences, trainSetSize)
@@ -56,6 +59,7 @@ yTest <- sequences[-trainIndexIndices,sequenceLength,]
 k_clear_session()
 ```
 
+## Create model
 ```{r}
 model <- keras_model_sequential()
 
@@ -70,15 +74,12 @@ model %>% compile(
 
 summary(model)
 ```
-
+## Test model
 ```{r}
-x <- xTrain
-y <- yTrain
-
-history <- model %>% fit(x, y, epochs = 100, verbose=F)
+history <- model %>% fit(xTrain, yTrain, epochs = 100, verbose=F)
 plot(history)
 ```
-
+## Predict on train and test sets
 ```{r}
 predictions <- model %>% predict(xTrain)
 plot(
@@ -93,8 +94,6 @@ lines(1:length(yTrain), yTrain, type="l")
 legend(5, y = 8, c("Prediction", "Actual"), c("red", "black"))
 
 predictions <- model %>% predict(xTest)
-closePred <- predictions[,1]
-closeActual <- yTest
 plot(
   1:length(predictions),
   predictions,
