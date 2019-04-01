@@ -1,0 +1,119 @@
+---
+title: "keras-stock-exercise"
+author: "Sean Fitzgerald"
+date: "3/30/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Installations and imports
+```{r}
+# install.packages("devtools")
+# devtools::install_github("rstudio/keras")
+library(keras)
+#use_python("/Users/sean/.pyenv/shims/python")
+# install_keras(method = "conda", conda = "/Users/sean/.pyenv/shims/conda")
+library(caret)
+```
+
+## Read in data
+```{r}
+# use 'tf' to use the tensorflow package
+df <- read.csv("./prices-split-adjusted.csv")
+head(df)
+```
+
+# Preprocessing
+```{r}
+# Equinix is a datacenter company based in California
+stock <- df[which(df$symbol == "MSFT"),c(4), drop = F]
+rownames(stock) <- 1:nrow(stock)
+preProcessValues <- preProcess(stock, method=c("range"))
+stockProcessed <- predict(preProcessValues, stock)
+```
+
+# Define parameters and create train/test set
+```{r}
+# parameters, change these depending on what you think will work better
+numInputs <- ncol(stockProcessed)
+numNeurons <- 19L # make sure this isn't much more than the sequence length, otherwise your loss might overflow
+numOutputs <- numInputs
+learningRate = 0.01
+batchSize = 34L
+numEpochs = 20L
+sequenceLength = 15L
+numSteps <- sequenceLength - 1L
+numSequences = nrow(stockProcessed) - sequenceLength
+
+# create the 3D array of sequences based on numSequences, sequenceLength, and numSteps
+
+# create train and test sets, making the last set of inputs in the sequnce y
+# you can either make them randomized or sequential, depending on what you think will work better
+```
+
+```{r}
+#this will error out, but graph still gets reset, this is useful to run in between changes to your model
+k_clear_session()
+```
+
+# Create model
+```{r}
+# create your sequential model
+
+# add layers to it such as layer_simple_rnn() and layer_dense()
+
+# compile your model using an optimizer such as optimizer_sgd() and a loss function such as "mse"
+
+# print out a summary of your model
+```
+
+# Train model
+```{r}
+# fitting your model is done for you
+history <- model %>% fit(
+  xTrain,
+  yTrain,
+  epochs = numEpochs,
+  batch_size = batchSize,
+  verbose = F,
+  shuffle = F
+)
+
+plot(history)
+```
+
+```{r}
+# you can see how your model performs on both the training set and testing set
+predictions <- model %>% predict(xTrain, batch_size = batchSize)
+closePred <- predictions[,1]
+closeActual <- yTrain
+plot(
+  1:length(closePred),
+  closePred,
+  type="l",
+  col="red",
+  ylim=c(min(c(closePred, closeActual)), max(c(closePred, closeActual))),
+  main="Prediction on Training Set"
+  )
+lines(1:length(closeActual), closeActual, type="l")
+legend(5, y = .6, c("Prediction", "Actual"), c("red", "black"))
+
+predictions <- model %>% predict(xTest, batch_size = batchSize)
+closePred <- predictions[,1]
+closeActual <- yTest
+plot(
+  1:length(closePred),
+  closePred,
+  type="l",
+  col="red",
+  ylim=c(min(c(closePred, closeActual)), max(c(closePred, closeActual))),
+  main="Prediction on Test Set"
+  )
+lines(1:length(closeActual), closeActual, type="l")
+legend(5, y = .95, c("Prediction", "Actual"), c("red", "black"))
+```
+
+

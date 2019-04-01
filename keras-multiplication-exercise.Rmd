@@ -1,0 +1,98 @@
+---
+title: "keras-multiplication-exercise"
+author: "Sean Fitzgerald"
+date: "3/29/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Install libraries
+```{r}
+# install.packages("devtools")
+# devtools::install_github("rstudio/keras")
+library(keras)
+use_python("/Users/sean/.pyenv/shims/python")
+# install_keras(method = "conda", conda = "/Users/sean/.pyenv/shims/conda")
+```
+
+## Generate data
+```{r}
+numSequences <- 500L
+sequenceLength <- 4L
+numSteps <- sequenceLength - 1L
+numInputs <- 1L
+
+generateSampleData <- function(numSequences, sequenceLength, numInputs) {
+  # generate numSequences sequences of numbers that are of sequence length and have numInputs inputs
+  # these sequences should look like number -> number*2 -> number*4 -> number*8
+}
+
+sequences <- generateSampleData(numSequences, sequenceLength, numInputs)
+sequences[1,1,1]*2 == sequences[1,2,1]
+```
+
+## Create train and test sets
+```{r}
+# create a training set and a testing set
+# the training set should be 80% of the total number of sequences
+
+# don't forget to add drop = F to not lose dimensions when indexing
+```
+
+```{r}
+# this will clear the current graph for creating new models/layers. It errors out but still clears the graph
+k_clear_session()
+```
+
+## Create model
+```{r}
+# initialize a sequential model
+
+# add layers to the model. the number of units can't exceed the sequence length
+# 1 simple_rnn layer
+# 1 dense layer
+
+# compile the model using the sgd optimizer with a learning rate of 0.003 and a mean-squared error loss function
+
+# print out a summary of the model
+```
+## Test model
+```{r}
+# call fit() on the model using xTrain and yTrain, 100 epochs, and set verbose=FALSE
+# assign the output to a history object to plot the loss
+
+# plot the history
+```
+## Predict on train and test sets
+```{r}
+# make predictions on the training set
+
+# plot the predictions vs the actual value
+plot(
+  1:length(predictions),
+  predictions,
+  type="l",
+  col="red",
+  ylim=c(min(c(predictions, yTrain)), max(c(predictions, yTrain))),
+  main="Prediction on Training Set"
+  )
+lines(1:length(yTrain), yTrain, type="l")
+legend(5, y = 8, c("Prediction", "Actual"), c("red", "black"))
+
+# make predictions on the test set
+
+# plot the predictions vs the actual value
+plot(
+  1:length(predictions),
+  predictions,
+  type="l",
+  col="red",
+  ylim=c(min(c(predictions, yTest)), max(c(predictions, yTest))),
+  main="Prediction on Test Set"
+  )
+lines(1:length(yTest), yTest, type="l")
+legend(5, y = 8, c("Prediction", "Actual"), c("red", "black"))
+```
