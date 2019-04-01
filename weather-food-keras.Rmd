@@ -20,17 +20,6 @@ library(keras)
 ```{r}
 food <- read.csv("./weather-food.csv")
 head(food)
-
-numInputs <- ncol(food)
-learningRate = 0.3
-sequenceLength = 2L
-numSteps <- sequenceLength - 1L
-numSequences = nrow(food) - sequenceLength
-
-sequences <- array(0L,c(numSequences,sequenceLength,numInputs))
-for (i in 1:numSequences) {
-  sequences[i,,] <- array(as.matrix(food[i:(i+sequenceLength-1),]),c(sequenceLength,numInputs))
-}
 ```
 
 
@@ -102,7 +91,7 @@ summary(model)
 ```{r}
 # Expects a keras model with 2 inputs. The first being each time step in the sequence and the second being the output that is fed back to the input
 feedSequence <- function(model, inputSequence, startState) {
-  predictions <- matrix(rep.int(0, nrow(inputSequence) * ncol(startState)), nrow=nrow(inputSequence), ncol=ncol(startState))
+  predictions <- matrix(0L, nrow=nrow(inputSequence), ncol=ncol(startState))
   previousOutput <- startState
   for (i in 1:nrow(inputSequence)) {
     previousOutput <- predict(model, list(
